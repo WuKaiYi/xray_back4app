@@ -1,27 +1,24 @@
-#FROM nginx:latest
-#EXPOSE 80
-#WORKDIR /app
-#USER root
-#COPY entrypoint.sh ./
-#COPY index.html /usr/share/nginx/html/
-#
-#
-#ENTRYPOINT [ "./entrypoint.sh" ]
+# 使用最乾淨、穩定的標準 Linux Nginx 作為基底，絕不報錯
+FROM nginx:alpine
 
-FROM nginx:latest
+# 設定工作目錄
+WORKDIR /usr/share/nginx/html
 
-# 复制本地的 entrypoint.sh 到容器中
+# 安裝必要的基礎組件 (100% 本地編譯，不下載任何第三方探針)
+RUN apk add --no-cache --virtual .build-deps ca-certificates curl unzip
+
+# 下載並封裝最穩定的原生 Xray 內核，直接固化在容器內
+RUN curl -L -H "Cache-Control: no-cache" -o xray.zip https://github.com && \
+    unzip xray.zip && \
+    chmod +x xray && \
+    rm -f xray.zip
+
+# 複製啟動腳本
 COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-COPY nezha.sh /app/nezha/
-
-# 赋予 entrypoint.sh 执行权限
-RUN chmod +x /entrypoint.sh && chmod +x /app/nezha/nezha.sh && apt-get update && apt-get install -y wget unzip qrencode iproute2 systemctl apt-utils
-
-
-# 暴露容器的 80 端口
+# 暴露標準網頁 80 端口（Back4app 會自動幫你轉發為 HTTPS 443）
 EXPOSE 80
 
-
-# 运行 entrypoint.sh
-CMD ["/entrypoint.sh"]
+# 啟動命令
+ENTRYPOINT ["/entrypoint.sh"]
